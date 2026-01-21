@@ -310,15 +310,13 @@ button {
 .puzzle-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-  aspect-ratio: 1;
+  gap: 2px;
   max-width: 400px;
   margin: 0 auto;
 }
 
 .puzzle-piece {
   aspect-ratio: 1;
-  border-radius: 4px;
   overflow: hidden;
   cursor: grab;
   transition: transform 0.15s ease, box-shadow 0.15s ease;

@@ -12,7 +12,7 @@ export interface ShuffledPiece {
 /**
  * Slice an image into 9 equal pieces (3x3 grid)
  */
-export async function sliceImage(imageSrc: string): Promise<ImageSlice[]> {
+export async function sliceImage(imageSrc: string): Promise<{ pieces: ImageSlice[]; aspectRatio: number }> {
   return new Promise((resolve, reject) => {
     const img = new Image()
     img.crossOrigin = 'anonymous'
@@ -53,7 +53,7 @@ export async function sliceImage(imageSrc: string): Promise<ImageSlice[]> {
         }
       }
 
-      resolve(pieces)
+      resolve({ pieces, aspectRatio: img.width / img.height })
     }
 
     img.onerror = () => reject(new Error('Failed to load image'))

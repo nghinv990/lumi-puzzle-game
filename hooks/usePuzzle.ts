@@ -22,6 +22,7 @@ interface UsePuzzleReturn {
   moves: number
   timeSeconds: number
   score: number
+  aspectRatio: number
   handleSwap: (fromIndex: number, toIndex: number) => void
   reset: () => void
 }
@@ -34,6 +35,8 @@ export function usePuzzle({ imageSrc, onComplete }: UsePuzzleOptions): UsePuzzle
   const [timeSeconds, setTimeSeconds] = useState(0)
   const [score, setScore] = useState(0)
   const [timerActive, setTimerActive] = useState(false)
+
+  const [aspectRatio, setAspectRatio] = useState(1)
 
   // Use refs to track current values for callbacks (avoid stale closures)
   const movesRef = useRef(0)
@@ -74,11 +77,12 @@ export function usePuzzle({ imageSrc, onComplete }: UsePuzzleOptions): UsePuzzle
 
     try {
       console.log('[Puzzle] Loading image:', imageSrc)
-      const slices = await sliceImage(imageSrc)
+      const { pieces: slices, aspectRatio: ratio } = await sliceImage(imageSrc)
       const shuffled = shufflePieces(slices)
       setPieces(shuffled)
+      setAspectRatio(ratio)
       setTimerActive(true)
-      console.log('[Puzzle] Loaded and shuffled', shuffled.length, 'pieces')
+      console.log('[Puzzle] Loaded and shuffled', shuffled.length, 'pieces', 'ratio:', ratio)
     } catch (error) {
       console.error('[Puzzle] Failed to load puzzle:', error)
     } finally {
@@ -155,6 +159,7 @@ export function usePuzzle({ imageSrc, onComplete }: UsePuzzleOptions): UsePuzzle
     moves,
     timeSeconds,
     score,
+    aspectRatio,
     handleSwap,
     reset,
   }

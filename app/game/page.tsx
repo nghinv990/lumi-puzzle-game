@@ -22,7 +22,7 @@ import { useSocket } from '@/hooks/useSocket'
 import { formatTime, type ShuffledPiece } from '@/lib/puzzleEngine'
 
 // Sortable Puzzle Piece Component
-function SortablePiece({ piece, pieceId, disabled }: { piece: ShuffledPiece; pieceId: string; disabled: boolean }) {
+function SortablePiece({ piece, pieceId, disabled, aspectRatio }: { piece: ShuffledPiece; pieceId: string; disabled: boolean; aspectRatio: number }) {
   const {
     attributes,
     listeners,
@@ -40,6 +40,7 @@ function SortablePiece({ piece, pieceId, disabled }: { piece: ShuffledPiece; pie
     opacity: isDragging ? 0.9 : 1,
     cursor: isDragging ? 'grabbing' : 'grab',
     willChange: isDragging ? 'transform' : 'auto',
+    aspectRatio: aspectRatio,
   }
 
   return (
@@ -153,6 +154,7 @@ export default function GamePage() {
     moves,
     timeSeconds,
     score,
+    aspectRatio,
     handleSwap,
     reset,
   } = usePuzzle({
@@ -289,12 +291,13 @@ export default function GamePage() {
                   items={pieces.map(p => `piece-${p.originalIndex}`)}
                   strategy={rectSortingStrategy}
                 >
-                  <div className="puzzle-grid">
+                  <div className="puzzle-grid" style={{ aspectRatio }}>
                     {pieces.map(piece => (
                       <SortablePiece
                         key={`piece-${piece.originalIndex}`}
                         pieceId={`piece-${piece.originalIndex}`}
                         piece={piece}
+                        aspectRatio={aspectRatio}
                         disabled={isComplete}
                       />
                     ))}
