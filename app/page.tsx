@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, FormEvent, useEffect } from 'react'
+import { useState, FormEvent, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useGameStore, createPlayer } from '@/store/gameStore'
 import { useSocket } from '@/hooks/useSocket'
@@ -50,7 +50,7 @@ const getQRCodeUrl = (gameUrl: string) => {
   return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodedUrl}&bgcolor=ffffff&color=0f172a`
 }
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const setCurrentPlayer = useGameStore(state => state.setCurrentPlayer)
@@ -114,6 +114,126 @@ export default function LoginPage() {
   }
 
   return (
+    <>
+      <div className="text-center mb-8">
+        <div className="inline-block animate-float">
+          <LumiLogo />
+        </div>
+        <h1 className="text-3xl font-heading mt-4 text-gradient">
+          PUZZLE GAME
+        </h1>
+        <p className="text-slate-400 mt-2">
+          Thử thách trí tuệ - Ghép hình siêu tốc
+        </p>
+      </div>
+
+      <div className="card-glass">
+        {/* QR Code Display */}
+        <div className="text-center mb-6">
+          <p className="text-sm text-slate-400 mb-3">
+            Quét mã QR để tham gia trên thiết bị khác
+          </p>
+          <div className="relative inline-block p-4 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 group">
+            <div className="absolute inset-0 bg-blue-500/10 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="relative p-2 bg-white rounded-xl shadow-inner">
+              {gameUrl && (
+                <img
+                  src={getQRCodeUrl(gameUrl)}
+                  alt="QR Code để tham gia game"
+                  className="w-40 h-40"
+                  loading="lazy"
+                />
+              )}
+              {/* Scanner Line Animation */}
+              <div className="absolute inset-x-2 top-2 h-0.5 bg-blue-500/50 shadow-[0_0_10px_#3B82F6] animate-[scan_2s_linear_infinite]" />
+            </div>
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="flex items-center gap-4 mb-6">
+          <div className="flex-1 h-px bg-slate-600" />
+          <span className="text-slate-400 text-sm">hoặc nhập tên</span>
+          <div className="flex-1 h-px bg-slate-600" />
+        </div>
+
+        {/* Name Input Form */}
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label htmlFor="playerName" className="block text-sm font-medium mb-2">
+              Nhập tên của bạn
+            </label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                <UserIcon />
+              </span>
+              <input
+                id="playerName"
+                type="text"
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value)
+                  setError('')
+                }}
+                placeholder="VD: Nguyễn Văn A"
+                className="input pl-12! pr-12!"
+                maxLength={20}
+                autoComplete="off"
+                autoFocus
+              />
+              {isGameMaster && (
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-orange-500 animate-scale-in flex items-center gap-1">
+                  <CrownIcon />
+                  <span className="text-[10px] font-bold uppercase tracking-wider">GM</span>
+                </span>
+              )}
+            </div>
+            {error && (
+              <p className="text-red-500 text-sm mt-2 animate-shake">
+                {error}
+              </p>
+            )}
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full btn btn-accent btn-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? (
+              <span className="flex items-center gap-2">
+                <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Đang tham gia...
+              </span>
+            ) : (
+              isGameMaster ? 'Tạo phòng & Tham gia' : 'Tham gia ngay'
+            )}
+          </button>
+        </form>
+      </div>
+
+      {/* Footer */}
+      <p className="text-center text-slate-400 text-sm mt-6">
+        Nhà thông minh{' '}
+        <a
+          href="https://lumi.vn"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-500 hover:underline"
+        >
+          Lumi
+        </a>
+        {' '}© 2026
+      </p>
+    </>
+  )
+}
+
+export default function LoginPage() {
+  return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden">
       {/* Background Effects */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -137,121 +257,13 @@ export default function LoginPage() {
 
       {/* Content */}
       <div className="relative z-10 w-full max-w-md animate-slide-up">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-block animate-float">
-            <LumiLogo />
+        <Suspense fallback={
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
           </div>
-          <h1 className="text-3xl font-heading mt-4 text-gradient">
-            PUZZLE GAME
-          </h1>
-          <p className="text-slate-400 mt-2">
-            Thử thách trí tuệ - Ghép hình siêu tốc
-          </p>
-        </div>
-
-        {/* Login Card */}
-        <div className="card-glass">
-          {/* QR Code Display */}
-          <div className="text-center mb-6">
-            <p className="text-sm text-slate-400 mb-3">
-              Quét mã QR để tham gia trên thiết bị khác
-            </p>
-            <div className="relative inline-block p-4 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 group">
-              <div className="absolute inset-0 bg-blue-500/10 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="relative p-2 bg-white rounded-xl shadow-inner">
-                {gameUrl && (
-                  <img
-                    src={getQRCodeUrl(gameUrl)}
-                    alt="QR Code để tham gia game"
-                    className="w-40 h-40"
-                    loading="lazy"
-                  />
-                )}
-                {/* Scanner Line Animation */}
-                <div className="absolute inset-x-2 top-2 h-0.5 bg-blue-500/50 shadow-[0_0_10px_#3B82F6] animate-[scan_2s_linear_infinite]" />
-              </div>
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div className="flex items-center gap-4 mb-6">
-            <div className="flex-1 h-px bg-slate-600" />
-            <span className="text-slate-400 text-sm">hoặc nhập tên</span>
-            <div className="flex-1 h-px bg-slate-600" />
-          </div>
-
-          {/* Name Input Form */}
-          <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label htmlFor="playerName" className="block text-sm font-medium mb-2">
-                Nhập tên của bạn
-              </label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-                  <UserIcon />
-                </span>
-                <input
-                  id="playerName"
-                  type="text"
-                  value={name}
-                  onChange={(e) => {
-                    setName(e.target.value)
-                    setError('')
-                  }}
-                  placeholder="VD: Nguyễn Văn A"
-                  className="input pl-12! pr-12!"
-                  maxLength={20}
-                  autoComplete="off"
-                  autoFocus
-                />
-                {isGameMaster && (
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-orange-500 animate-scale-in flex items-center gap-1">
-                    <CrownIcon />
-                    <span className="text-[10px] font-bold uppercase tracking-wider">GM</span>
-                  </span>
-                )}
-              </div>
-              {error && (
-                <p className="text-red-500 text-sm mt-2 animate-shake">
-                  {error}
-                </p>
-              )}
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full btn btn-accent btn-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <span className="flex items-center gap-2">
-                  <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  Đang tham gia...
-                </span>
-              ) : (
-                isGameMaster ? 'Tạo phòng & Tham gia' : 'Tham gia ngay'
-              )}
-            </button>
-          </form>
-        </div>
-
-        {/* Footer */}
-        <p className="text-center text-slate-400 text-sm mt-6">
-          Nhà thông minh{' '}
-          <a
-            href="https://lumi.vn"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-500 hover:underline"
-          >
-            Lumi
-          </a>
-          {' '}© 2026
-        </p>
+        }>
+          <LoginContent />
+        </Suspense>
       </div>
     </div>
   )
