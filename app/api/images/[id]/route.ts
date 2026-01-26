@@ -10,6 +10,7 @@ declare global {
     data: string
     mimeType: string
     createdAt: number
+    isDefault?: boolean
   }> | undefined
 }
 
