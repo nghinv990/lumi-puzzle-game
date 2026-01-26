@@ -1,26 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server'
-import fs from 'fs'
-import path from 'path'
 import { v4 as uuidv4 } from 'uuid'
 
-const IMAGES_DIR = path.join(process.cwd(), 'public', 'puzzles')
+// In-memory image storage for production (no file system access)
+interface ImageData {
+  id: string
+  filename: string
+  data: string // Base64 data URL or static path
+  mimeType: string
+  createdAt: number
+  isDefault?: boolean // Mark as default image (from public/puzzles)
+}
 
-// Ensure directory exists
-if (!fs.existsSync(IMAGES_DIR)) {
-  fs.mkdirSync(IMAGES_DIR, { recursive: true })
+// Default images from public/puzzles folder
+// These will always be available even after server restart
+const DEFAULT_IMAGES: Omit<ImageData, 'createdAt'>[] = [
+  { id: 'default_1', filename: '1.webp', data: '/puzzles/1.webp', mimeType: 'image/webp', isDefault: true },
+  { id: 'default_2', filename: '2.webp', data: '/puzzles/2.webp', mimeType: 'image/webp', isDefault: true },
+  { id: 'default_3', filename: '3.webp', data: '/puzzles/3.webp', mimeType: 'image/webp', isDefault: true },
+  { id: 'default_4', filename: '4.webp', data: '/puzzles/4.webp', mimeType: 'image/webp', isDefault: true },
+  { id: 'default_5', filename: '5.webp', data: '/puzzles/5.webp', mimeType: 'image/webp', isDefault: true },
+  { id: 'default_6', filename: '6.webp', data: '/puzzles/6.webp', mimeType: 'image/webp', isDefault: true },
+  { id: 'default_7', filename: '7.webp', data: '/puzzles/7.webp', mimeType: 'image/webp', isDefault: true },
+]
+
+// Global in-memory store
+declare global {
+  // eslint-disable-next-line no-var
+  var imageStore: Map<string, ImageData> | undefined
+}
+
+// Initialize or get the global image store
+function getImageStore(): Map<string, ImageData> {
+  if (!global.imageStore) {
+    global.imageStore = new Map<string, ImageData>()
+    // Initialize with default images
+    DEFAULT_IMAGES.forEach(img => {
+      global.imageStore!.set(img.id, { ...img, createdAt: Date.now() })
+    })
+  }
+  return global.imageStore
 }
 
 // GET /api/images - List all puzzle images
 export async function GET() {
   try {
-    const files = fs.readdirSync(IMAGES_DIR)
-    const images = files
-      .filter(f => /\.(jpg|jpeg|png|webp)$/i.test(f))
-      .map(filename => ({
-        id: filename,
-        filename,
-        url: `/puzzles/${filename}`,
-      }))
+    const store = getImageStore()
+    const images = Array.from(store.values()).map(img => ({
+      id: img.id,
+      filename: img.filename,
+      url: img.data, // Return base64 data URL directly
+    }))
 
     return NextResponse.json({ success: true, images })
   } catch (error) {
@@ -53,17 +82,38 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate filename
-    const ext = path.extname(file.name) || '.jpg'
-    const filename = `puzzle_${uuidv4().slice(0, 8)}${ext}`
-    const filepath = path.join(IMAGES_DIR, filename)
+    // Validate file size (max 5MB to avoid memory issues)
+    const MAX_SIZE = 5 * 1024 * 1024 // 5MB
+    if (file.size > MAX_SIZE) {
+      return NextResponse.json(
+        { success: false, error: 'Image size must be less than 5MB' },
+        { status: 400 }
+      )
+    }
 
-    // Write file
+    // Generate unique ID
+    const id = `puzzle_${uuidv4().slice(0, 8)}`
+    const ext = file.name.split('.').pop() || 'jpg'
+    const filename = `${id}.${ext}`
+
+    // Convert to base64 data URL
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
-    fs.writeFileSync(filepath, buffer)
+    const base64 = buffer.toString('base64')
+    const dataUrl = `data:${file.type};base64,${base64}`
 
-    console.log(`[API] Image uploaded: ${filename}`)
+    // Store in memory
+    const store = getImageStore()
+    const imageData: ImageData = {
+      id,
+      filename,
+      data: dataUrl,
+      mimeType: file.type,
+      createdAt: Date.now(),
+    }
+    store.set(id, imageData)
+
+    console.log(`[API] Image uploaded: ${filename} (in-memory)`)
 
     // Emit socket event if available
     const io = (global as any).io
@@ -74,9 +124,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       image: {
-        id: filename,
+        id,
         filename,
-        url: `/puzzles/${filename}`,
+        url: dataUrl,
       },
     })
   } catch (error) {

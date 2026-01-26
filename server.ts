@@ -2,8 +2,6 @@ import { createServer } from 'http'
 import { parse } from 'url'
 import next from 'next'
 import { Server as SocketIOServer } from 'socket.io'
-import fs from 'fs'
-import path from 'path'
 
 const dev = process.env.NODE_ENV !== 'production'
 const hostname = 'localhost'
@@ -41,12 +39,6 @@ let gameState: GameState = {
   isStarted: false,
   startTime: null,
   totalPuzzles: 0,
-}
-
-// Ensure public/puzzles directory exists
-const IMAGES_DIR = path.join(process.cwd(), 'public', 'puzzles')
-if (!fs.existsSync(IMAGES_DIR)) {
-  fs.mkdirSync(IMAGES_DIR, { recursive: true })
 }
 
 app.prepare().then(() => {
@@ -213,7 +205,6 @@ app.prepare().then(() => {
     console.log(`
 🚀 Lumi Puzzle Game Server
 📡 Ready at http://${hostname}:${port}
-📁 Images directory: ${IMAGES_DIR}
     `)
   })
 })

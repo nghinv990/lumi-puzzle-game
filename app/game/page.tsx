@@ -305,28 +305,15 @@ export default function GamePage() {
                 </SortableContext>
               </DndContext>
 
-              {/* Completion Overlay */}
+              {/* Completion - just show next button below the completed puzzle */}
               {isComplete && (
-                <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-lg animate-scale-in z-50">
-                  <div className="text-center p-6 bg-slate-900/90 rounded-xl border border-blue-500/30 shadow-2xl backdrop-blur-md">
-                    <div className="text-5xl mb-4 animate-float">🎉</div>
-                    <h2 className="text-2xl font-heading text-green-500 mb-2">
-                      Hoàn thành!
-                    </h2>
-                    <div className="flex justify-center gap-4 text-sm text-slate-400 mb-4">
-                      <span>⏱️ {formatTime(timeSeconds)}</span>
-                      <span>🎯 {moves} lần</span>
-                    </div>
-                    <p className="text-4xl font-heading text-gradient glow-text mb-6">
-                      +{score} điểm
-                    </p>
-                    <button
-                      onClick={handleNext}
-                      className="btn btn-accent btn-lg w-full glow-accent"
-                    >
-                      {isLastPuzzle() ? 'Xem kết quả' : 'Câu đố tiếp theo →'}
-                    </button>
-                  </div>
+                <div className="mt-4 animate-slide-up">
+                  <button
+                    onClick={handleNext}
+                    className="btn btn-accent btn-lg w-full glow-accent"
+                  >
+                    {isLastPuzzle() ? 'Xem kết quả 🏆' : 'Câu đố tiếp theo →'}
+                  </button>
                 </div>
               )}
             </div>
