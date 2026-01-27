@@ -532,15 +532,6 @@ export default function AdminDashboard() {
             🏆 Leaderboard
           </button>
           <button
-            onClick={() => setActiveTab('images')}
-            className={`px-4 py-2 rounded-t-lg font-medium transition-colors border-b-2 ${activeTab === 'images'
-              ? 'border-blue-500 text-blue-500'
-              : 'border-transparent text-slate-400 hover:text-white'
-              }`}
-          >
-            🖼️ Quản lý
-          </button>
-          <button
             onClick={() => setActiveTab('slideshow')}
             className={`px-4 py-2 rounded-t-lg font-medium transition-colors border-b-2 ${activeTab === 'slideshow'
               ? 'border-blue-500 text-blue-500'
@@ -548,6 +539,15 @@ export default function AdminDashboard() {
               }`}
           >
             📽️ Tổng kết
+          </button>
+          <button
+            onClick={() => setActiveTab('images')}
+            className={`px-4 py-2 rounded-t-lg font-medium transition-colors border-b-2 ${activeTab === 'images'
+              ? 'border-blue-500 text-blue-500'
+              : 'border-transparent text-slate-400 hover:text-white'
+              }`}
+          >
+            🖼️ Quản lý
           </button>
         </div>
 
@@ -641,7 +641,7 @@ export default function AdminDashboard() {
         )}
 
         {activeTab === 'slideshow' && (
-          <Slideshow images={images} onClose={() => setActiveTab('images')} />
+          <Slideshow images={images} onClose={() => setActiveTab('leaderboard')} />
         )}
 
         {gameState?.isStarted && (
