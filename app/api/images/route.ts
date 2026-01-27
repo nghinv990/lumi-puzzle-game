@@ -136,3 +136,53 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+// PUT /api/images - Reset/Switch image set
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { set } = body // 'default' | 'test'
+
+    const store = getImageStore()
+    store.clear()
+
+    let imagesToLoad: Omit<ImageData, 'createdAt'>[] = []
+
+    if (set === 'test') {
+      // Images from public/puzzles-test
+      imagesToLoad = [
+        { id: 'test_1', filename: '1.webp', data: '/puzzles-test/1.webp', mimeType: 'image/webp', isDefault: true },
+        { id: 'test_2', filename: '2.webp', data: '/puzzles-test/2.webp', mimeType: 'image/webp', isDefault: true },
+        { id: 'test_3', filename: '3.webp', data: '/puzzles-test/3.webp', mimeType: 'image/webp', isDefault: true },
+        { id: 'test_4', filename: '4.webp', data: '/puzzles-test/4.webp', mimeType: 'image/webp', isDefault: true },
+        { id: 'test_5', filename: '5.webp', data: '/puzzles-test/5.webp', mimeType: 'image/webp', isDefault: true },
+      ]
+    } else {
+      // Default images
+      imagesToLoad = DEFAULT_IMAGES
+    }
+
+    imagesToLoad.forEach(img => {
+      store.set(img.id, { ...img, createdAt: Date.now() })
+    })
+
+    // Emit socket event if available
+    const io = (global as any).io
+    if (io) {
+      io.emit('images:update')
+    }
+
+    const images = Array.from(store.values()).map(img => ({
+      id: img.id,
+      filename: img.filename,
+      url: img.data,
+    }))
+
+    return NextResponse.json({ success: true, count: store.size, images })
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, error: (error as Error).message },
+      { status: 500 }
+    )
+  }
+}

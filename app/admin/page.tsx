@@ -127,6 +127,49 @@ function Toast({ message, isVisible }: { message: string; isVisible: boolean }) 
   )
 }
 
+// Confirmation Modal
+interface ConfirmModalProps {
+  isOpen: boolean
+  title: string
+  message: string
+  onConfirm: () => void
+  onCancel: () => void
+  type?: 'danger' | 'warning' | 'info'
+}
+
+function ConfirmModal({ isOpen, title, message, onConfirm, onCancel, type = 'warning' }: ConfirmModalProps) {
+  if (!isOpen) return null
+
+  const confirmBtnClass = {
+    danger: 'bg-red-500 hover:bg-red-600',
+    warning: 'bg-orange-500 hover:bg-orange-600',
+    info: 'bg-blue-500 hover:bg-blue-600'
+  }[type]
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+      <div className="bg-slate-900 border border-slate-700 rounded-xl max-w-md w-full p-6 shadow-2xl animate-scale-up">
+        <h3 className="text-xl font-bold text-white mb-2">{title}</h3>
+        <p className="text-slate-300 mb-6">{message}</p>
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors"
+          >
+            Hủy
+          </button>
+          <button
+            onClick={onConfirm}
+            className={`px-4 py-2 rounded-lg text-white font-medium transition-colors ${confirmBtnClass}`}
+          >
+            Xác nhận
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Image Card for Manager
 interface ImageItem {
   id: string
@@ -137,11 +180,8 @@ interface ImageItem {
 function ImageCard({ image, onDelete }: { image: ImageItem; onDelete: (id: string) => void }) {
   const [isDeleting, setIsDeleting] = useState(false)
 
-  const handleDelete = async () => {
-    if (confirm('Xác nhận xóa hình này?')) {
-      setIsDeleting(true)
-      await onDelete(image.id)
-    }
+  const handleDelete = () => {
+    onDelete(image.id)
   }
 
   return (
@@ -169,6 +209,82 @@ function ImageCard({ image, onDelete }: { image: ImageItem; onDelete: (id: strin
   )
 }
 
+// Slideshow Component
+function Slideshow({ images, onClose }: { images: ImageItem[]; onClose: () => void }) {
+  const [currentIndex, setCurrentIndex] = useState(0)
+
+  const handleNext = useCallback(() => {
+    setCurrentIndex((prev) => (prev + 1) % images.length)
+  }, [images.length])
+
+  const handlePrev = useCallback(() => {
+    setCurrentIndex((prev) => (prev - 1 + images.length) % images.length)
+  }, [images.length])
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') handleNext()
+      if (e.key === 'ArrowLeft') handlePrev()
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleNext, handlePrev, onClose])
+
+  if (images.length === 0) return (
+    <div className="flex flex-col items-center justify-center h-[60vh] text-slate-400">
+      <div className="text-6xl mb-4">🖼️</div>
+      <p>Chưa có hình ảnh nào để trình chiếu</p>
+    </div>
+  )
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black flex flex-col">
+      <div className="absolute top-4 right-4 z-50 flex gap-2">
+        <div className="bg-black/50 backdrop-blur px-3 py-1 rounded-full text-white font-medium border border-white/20">
+          {currentIndex + 1} / {images.length}
+        </div>
+        <button
+          onClick={onClose}
+          className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="flex-1 flex items-center justify-center p-4">
+        <div className="relative w-full h-full max-w-7xl mx-auto flex items-center justify-center">
+          <button
+            onClick={handlePrev}
+            className="absolute left-4 p-4 text-white/50 hover:text-white hover:bg-white/10 rounded-full transition-all"
+          >
+            <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+
+          <img
+            src={images[currentIndex].url}
+            alt={images[currentIndex].filename}
+            className="max-h-full max-w-full object-contain shadow-2xl"
+          />
+
+          <button
+            onClick={handleNext}
+            className="absolute right-4 p-4 text-white/50 hover:text-white hover:bg-white/10 rounded-full transition-all"
+          >
+            <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function AdminDashboard() {
   const router = useRouter()
   const currentPlayer = useGameStore(state => state.currentPlayer)
@@ -180,7 +296,20 @@ export default function AdminDashboard() {
   const [showToast, setShowToast] = useState(false)
   const [images, setImages] = useState<ImageItem[]>([])
   const [isUploading, setIsUploading] = useState(false)
-  const [activeTab, setActiveTab] = useState<'leaderboard' | 'images'>('leaderboard')
+  const [activeTab, setActiveTab] = useState<'leaderboard' | 'images' | 'slideshow'>('leaderboard')
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+    onConfirm: () => void
+    type?: 'danger' | 'warning' | 'info'
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => { },
+    type: 'warning'
+  })
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -269,16 +398,53 @@ export default function AdminDashboard() {
   }
 
   const handleDeleteImage = async (id: string) => {
-    try {
-      const res = await fetch(`/api/images/${id}`, { method: 'DELETE' })
-      const data = await res.json()
-      if (data.success) {
-        showNotification('🗑️ Đã xóa hình!')
-        fetchImages()
+    setConfirmModal({
+      isOpen: true,
+      title: 'Xóa hình ảnh',
+      message: 'Bạn có chắc chắn muốn xóa hình này không? Hành động này không thể hoàn tác.',
+      type: 'danger',
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }))
+        try {
+          const res = await fetch(`/api/images/${id}`, { method: 'DELETE' })
+          const data = await res.json()
+          if (data.success) {
+            showNotification('🗑️ Đã xóa hình!')
+            fetchImages()
+          }
+        } catch (error) {
+          showNotification('❌ Xóa thất bại!')
+        }
       }
-    } catch (error) {
-      showNotification('❌ Xóa thất bại!')
-    }
+    })
+  }
+
+  const handleLoadSet = (set: 'default' | 'test') => {
+    setConfirmModal({
+      isOpen: true,
+      title: set === 'test' ? 'Tải bộ Test' : 'Tải bộ Mặc định',
+      message: `Bạn có chắc muốn tải bộ hình ${set === 'test' ? 'Test (puzzles-test)' : 'Mặc định'}? Hành động này sẽ xóa các hình hiện tại.`,
+      type: 'warning',
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }))
+        try {
+          const res = await fetch('/api/images', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ set })
+          })
+          const data = await res.json()
+          if (data.success) {
+            showNotification(`✅ Đã tải bộ hình ${set}`)
+            fetchImages()
+          } else {
+            showNotification(`❌ Lỗi: ${data.error}`)
+          }
+        } catch (e) {
+          showNotification('❌ Lỗi kết nối!')
+        }
+      }
+    })
   }
 
   const handleStartGame = () => {
@@ -288,10 +454,17 @@ export default function AdminDashboard() {
   }
 
   const handleResetGame = () => {
-    if (confirm('Xác nhận reset game?')) {
-      resetGame()
-      showNotification('🔄 Game đã reset!')
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Reset Game',
+      message: 'Bạn có chắc chắn muốn reset game? Toàn bộ tiến độ người chơi sẽ bị xóa.',
+      type: 'danger',
+      onConfirm: () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }))
+        resetGame()
+        showNotification('🔄 Game đã reset!')
+      }
+    })
   }
 
   const sortedPlayers = [...players]
@@ -305,6 +478,14 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen p-4 md:p-8">
       <Toast message={toastMessage} isVisible={showToast} />
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        type={confirmModal.type}
+      />
 
       <div className="max-w-4xl mx-auto">
         <header className="mb-8">
@@ -357,11 +538,20 @@ export default function AdminDashboard() {
               : 'border-transparent text-slate-400 hover:text-white'
               }`}
           >
-            🖼️ Quản lý hình ({images.length})
+            🖼️ Quản lý
+          </button>
+          <button
+            onClick={() => setActiveTab('slideshow')}
+            className={`px-4 py-2 rounded-t-lg font-medium transition-colors border-b-2 ${activeTab === 'slideshow'
+              ? 'border-blue-500 text-blue-500'
+              : 'border-transparent text-slate-400 hover:text-white'
+              }`}
+          >
+            📽️ Tổng kết
           </button>
         </div>
 
-        {activeTab === 'leaderboard' ? (
+        {activeTab === 'leaderboard' && (
           <div className="space-y-4">
             {sortedPlayers.length === 0 ? (
               <div className="text-center py-12 text-slate-400 card">
@@ -381,35 +571,54 @@ export default function AdminDashboard() {
               ))
             )}
           </div>
-        ) : (
+        )}
+
+        {activeTab === 'images' && (
           <div className="animate-slide-up">
-            <div className="mb-6">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={handleUpload}
-                className="hidden"
-                id="image-upload"
-              />
-              <label
-                htmlFor="image-upload"
-                className={`btn btn-accent inline-flex items-center gap-2 cursor-pointer ${isUploading ? 'opacity-50 cursor-wait' : ''}`}
-              >
-                {isUploading ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Đang upload...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                    Upload hình mới
-                  </>
-                )}
-              </label>
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-6 sticky top-0 bg-slate-900/90 p-4 rounded-xl border border-slate-700 backdrop-blur z-30">
+              <div className="flex items-center gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleUpload}
+                  className="hidden"
+                  id="image-upload"
+                />
+                <label
+                  htmlFor="image-upload"
+                  className={`btn btn-accent inline-flex items-center gap-2 cursor-pointer ${isUploading ? 'opacity-50 cursor-wait' : ''}`}
+                >
+                  {isUploading ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Đang upload...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                      Upload hình mới
+                    </>
+                  )}
+                </label>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleLoadSet('default')}
+                  className="px-3 py-1.5 text-sm rounded bg-slate-700 hover:bg-slate-600 transition-colors"
+                >
+                  🔄 Mặc định
+                </button>
+                <button
+                  onClick={() => handleLoadSet('test')}
+                  className="px-3 py-1.5 text-sm rounded bg-purple-600 hover:bg-purple-500 transition-colors"
+                >
+                  🧪 Test
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -429,6 +638,10 @@ export default function AdminDashboard() {
               )}
             </div>
           </div>
+        )}
+
+        {activeTab === 'slideshow' && (
+          <Slideshow images={images} onClose={() => setActiveTab('images')} />
         )}
 
         {gameState?.isStarted && (
