@@ -19,6 +19,7 @@ interface Player {
   name: string
   isGameMaster: boolean
   isReady: boolean
+  isOnline: boolean
   currentPuzzle: number
   currentMoves: number
   completedPuzzles: number
@@ -33,7 +34,8 @@ interface GameState {
   totalPuzzles: number
 }
 
-const players = new Map<string, Player>()
+const players = new Map<string, Player>() // Key: player.id (from localStorage)
+const socketToPlayer = new Map<string, string>() // Key: socket.id -> Value: player.id
 
 let gameState: GameState = {
   isStarted: false,
@@ -68,21 +70,37 @@ app.prepare().then(() => {
 
     // Player joins the game
     socket.on('player:join', (playerData: { id?: string; name: string; isGameMaster: boolean }) => {
-      const player: Player = {
-        id: playerData.id || socket.id,
-        name: playerData.name,
-        isGameMaster: playerData.isGameMaster || false,
-        isReady: false,
-        currentPuzzle: 0,
-        currentMoves: 0,
-        completedPuzzles: 0,
-        score: 0,
-        totalTime: 0,
-        lastUpdate: Date.now(),
-      }
+      const playerId = playerData.id || socket.id
 
-      players.set(socket.id, player)
-      console.log(`[Socket] Player joined: ${player.name} (GM: ${player.isGameMaster})`)
+      // Check if player already exists (reconnecting)
+      const existingPlayer = players.get(playerId)
+
+      if (existingPlayer) {
+        // Player reconnecting - update their socket mapping and online status
+        existingPlayer.isOnline = true
+        existingPlayer.lastUpdate = Date.now()
+        socketToPlayer.set(socket.id, playerId)
+        console.log(`[Socket] Player reconnected: ${existingPlayer.name}`)
+      } else {
+        // New player
+        const player: Player = {
+          id: playerId,
+          name: playerData.name,
+          isGameMaster: playerData.isGameMaster || false,
+          isReady: false,
+          isOnline: true,
+          currentPuzzle: 0,
+          currentMoves: 0,
+          completedPuzzles: 0,
+          score: 0,
+          totalTime: 0,
+          lastUpdate: Date.now(),
+        }
+
+        players.set(playerId, player)
+        socketToPlayer.set(socket.id, playerId)
+        console.log(`[Socket] Player joined: ${player.name} (GM: ${player.isGameMaster})`)
+      }
 
       io.emit('players:update', Array.from(players.values()))
       socket.emit('game:state', gameState)
@@ -90,7 +108,8 @@ app.prepare().then(() => {
 
     // Player sets ready status
     socket.on('player:ready', (isReady: boolean) => {
-      const player = players.get(socket.id)
+      const playerId = socketToPlayer.get(socket.id)
+      const player = playerId ? players.get(playerId) : null
       if (player) {
         player.isReady = isReady
         player.lastUpdate = Date.now()
@@ -105,7 +124,8 @@ app.prepare().then(() => {
       score: number
       totalTime: number
     }) => {
-      const player = players.get(socket.id)
+      const playerId = socketToPlayer.get(socket.id)
+      const player = playerId ? players.get(playerId) : null
       if (player) {
         player.currentPuzzle = progressData.currentPuzzle
         player.currentMoves = progressData.currentMoves || 0
@@ -126,7 +146,8 @@ app.prepare().then(() => {
       puzzleIndex: number
       puzzleScore: number
     }) => {
-      const player = players.get(socket.id)
+      const playerId = socketToPlayer.get(socket.id)
+      const player = playerId ? players.get(playerId) : null
       if (player) {
         player.completedPuzzles = completeData.completedPuzzles
         player.score = completeData.score
@@ -138,7 +159,7 @@ app.prepare().then(() => {
         io.emit('players:update', Array.from(players.values()))
 
         io.emit('player:completed', {
-          playerId: socket.id,
+          playerId: player.id,
           playerName: player.name,
           puzzleIndex: completeData.puzzleIndex,
           puzzleScore: completeData.puzzleScore,
@@ -149,7 +170,8 @@ app.prepare().then(() => {
 
     // Admin starts the game
     socket.on('game:start', (data: { totalPuzzles: number }) => {
-      const player = players.get(socket.id)
+      const playerId = socketToPlayer.get(socket.id)
+      const player = playerId ? players.get(playerId) : null
       if (player && player.isGameMaster) {
         gameState = {
           isStarted: true,
@@ -162,9 +184,26 @@ app.prepare().then(() => {
       }
     })
 
-    // Admin resets the game
+    // Admin ends the game (keep results)
+    socket.on('game:end', () => {
+      const playerId = socketToPlayer.get(socket.id)
+      const player = playerId ? players.get(playerId) : null
+      if (player && player.isGameMaster) {
+        gameState = {
+          isStarted: false,
+          startTime: null,
+          totalPuzzles: gameState.totalPuzzles, // Keep totalPuzzles for showing results
+        }
+
+        console.log(`[Socket] Game ended by ${player.name} - keeping results`)
+        io.emit('game:ended', gameState)
+      }
+    })
+
+    // Admin resets the game (clear all results for new game)
     socket.on('game:reset', () => {
-      const player = players.get(socket.id)
+      const playerId = socketToPlayer.get(socket.id)
+      const player = playerId ? players.get(playerId) : null
       if (player && player.isGameMaster) {
         gameState = {
           isStarted: false,
@@ -172,29 +211,56 @@ app.prepare().then(() => {
           totalPuzzles: 0,
         }
 
-        players.forEach((p) => {
-          p.isReady = false
-          p.currentPuzzle = 0
-          p.currentMoves = 0
-          p.completedPuzzles = 0
-          p.score = 0
-          p.totalTime = 0
+        // Clear all non-admin players, reset admin stats
+        const adminPlayerId = playerId
+        const adminSocketId = socket.id
+
+        players.forEach((p, key) => {
+          if (!p.isGameMaster) {
+            players.delete(key)
+          } else {
+            // Reset admin stats but keep them
+            p.isReady = false
+            p.currentPuzzle = 0
+            p.currentMoves = 0
+            p.completedPuzzles = 0
+            p.score = 0
+            p.totalTime = 0
+          }
         })
 
-        console.log(`[Socket] Game reset by ${player.name}`)
+        // Clear socketToPlayer but re-add admin
+        socketToPlayer.clear()
+        if (adminPlayerId) {
+          socketToPlayer.set(adminSocketId, adminPlayerId)
+        }
+
+        console.log(`[Socket] Game reset by ${player.name} - all player results cleared`)
         io.emit('game:reset', gameState)
         io.emit('players:update', Array.from(players.values()))
       }
     })
 
-    // Disconnect
+    // Disconnect - mark as offline instead of deleting (to keep results)
     socket.on('disconnect', () => {
-      const player = players.get(socket.id)
-      if (player) {
+      const playerId = socketToPlayer.get(socket.id)
+      const player = playerId ? players.get(playerId) : null
+
+      if (player && playerId) {
         console.log(`[Socket] Player disconnected: ${player.name}`)
-        players.delete(socket.id)
-        io.emit('players:update', Array.from(players.values()))
+
+        // If game is not active (no results to keep) or player is game master, remove them
+        // Otherwise keep their results
+        if (!gameState.isStarted && gameState.totalPuzzles === 0) {
+          players.delete(playerId)
+        } else if (player.isGameMaster) {
+          players.delete(playerId)
+        }
+        // Don't delete regular players during/after game - keep their results
       }
+
+      socketToPlayer.delete(socket.id)
+      io.emit('players:update', Array.from(players.values()))
     })
   })
 

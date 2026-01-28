@@ -9,6 +9,7 @@ export interface PlayerData {
   name: string
   isGameMaster: boolean
   isReady: boolean
+  isOnline: boolean
   currentPuzzle: number
   currentMoves: number
   completedPuzzles: number
@@ -35,6 +36,7 @@ interface UseSocketOptions {
   autoConnect?: boolean
   onPlayersUpdate?: (players: PlayerData[]) => void
   onGameStarted?: (gameState: GameStateData) => void
+  onGameEnded?: (gameState: GameStateData) => void
   onGameReset?: () => void
   onPlayerCompleted?: (event: PlayerCompletedEvent) => void
   onImagesUpdate?: () => void
@@ -58,6 +60,7 @@ interface UseSocketReturn {
     puzzleScore: number
   }) => void
   startGame: (totalPuzzles: number) => void
+  endGame: () => void
   resetGame: () => void
 }
 
@@ -135,6 +138,11 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
       callbacksRef.current.onGameStarted?.(state)
     }
 
+    const handleGameEnded = (state: GameStateData) => {
+      setGameState({ ...state, isStarted: false })
+      callbacksRef.current.onGameEnded?.(state)
+    }
+
     const handleGameReset = () => {
       setGameState({ isStarted: false, startTime: null, totalPuzzles: 0 })
       callbacksRef.current.onGameReset?.()
@@ -151,6 +159,7 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
     socket.on('players:update', handlePlayersUpdate)
     socket.on('game:state', handleGameState)
     socket.on('game:started', handleGameStarted)
+    socket.on('game:ended', handleGameEnded)
     socket.on('game:reset', handleGameReset)
     socket.on('player:completed', handlePlayerCompleted)
     socket.on('images:update', handleImagesUpdate)
@@ -161,6 +170,7 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
       socket.off('players:update', handlePlayersUpdate)
       socket.off('game:state', handleGameState)
       socket.off('game:started', handleGameStarted)
+      socket.off('game:ended', handleGameEnded)
       socket.off('game:reset', handleGameReset)
       socket.off('player:completed', handlePlayerCompleted)
       socket.off('images:update', handleImagesUpdate)
@@ -201,6 +211,10 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
     globalSocket?.emit('game:start', { totalPuzzles })
   }, [])
 
+  const endGame = useCallback(() => {
+    globalSocket?.emit('game:end')
+  }, [])
+
   const resetGame = useCallback(() => {
     globalSocket?.emit('game:reset')
   }, [])
@@ -214,6 +228,7 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
     updateProgress,
     completeLevel,
     startGame,
+    endGame,
     resetGame,
   }
 }

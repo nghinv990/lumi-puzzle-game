@@ -102,7 +102,19 @@ export const useGameStore = create<GameState>((set, get) => ({
   }),
 
   addPuzzleResult: (result) => set((state) => {
-    const newResults = [...state.puzzleResults, result]
+    // Check if this puzzle result already exists (avoid duplicates)
+    const existingIndex = state.puzzleResults.findIndex(r => r.puzzleIndex === result.puzzleIndex)
+
+    let newResults: PuzzleResult[]
+    if (existingIndex >= 0) {
+      // Update existing result instead of adding duplicate
+      newResults = [...state.puzzleResults]
+      newResults[existingIndex] = result
+    } else {
+      // Add new result
+      newResults = [...state.puzzleResults, result]
+    }
+
     const totalScore = newResults.reduce((sum, r) => sum + r.score, 0)
     const totalTime = newResults.reduce((sum, r) => sum + r.timeSeconds, 0)
 
@@ -159,8 +171,24 @@ export const useGameStore = create<GameState>((set, get) => ({
 
 // Helper to create a new player
 export function createPlayer(name: string, isGameMaster: boolean = false): Player {
+  // Try to get existing player ID from localStorage (for reconnection)
+  const storageKey = `lumi_puzzle_player_${name.trim().toLowerCase()}`
+  let playerId: string
+
+  if (typeof window !== 'undefined') {
+    const existingId = localStorage.getItem(storageKey)
+    if (existingId) {
+      playerId = existingId
+    } else {
+      playerId = generateId()
+      localStorage.setItem(storageKey, playerId)
+    }
+  } else {
+    playerId = generateId()
+  }
+
   return {
-    id: generateId(),
+    id: playerId,
     name: name.trim(),
     score: 0,
     completedPuzzles: 0,

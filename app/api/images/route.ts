@@ -152,10 +152,10 @@ export async function PUT(request: NextRequest) {
       // Images from public/puzzles-test
       imagesToLoad = [
         { id: 'test_1', filename: '1.webp', data: '/puzzles-test/1.webp', mimeType: 'image/webp', isDefault: true },
-        { id: 'test_2', filename: '2.webp', data: '/puzzles-test/2.webp', mimeType: 'image/webp', isDefault: true },
-        { id: 'test_3', filename: '3.webp', data: '/puzzles-test/3.webp', mimeType: 'image/webp', isDefault: true },
-        { id: 'test_4', filename: '4.webp', data: '/puzzles-test/4.webp', mimeType: 'image/webp', isDefault: true },
-        { id: 'test_5', filename: '5.webp', data: '/puzzles-test/5.webp', mimeType: 'image/webp', isDefault: true },
+        // { id: 'test_2', filename: '2.webp', data: '/puzzles-test/2.webp', mimeType: 'image/webp', isDefault: true },
+        // { id: 'test_3', filename: '3.webp', data: '/puzzles-test/3.webp', mimeType: 'image/webp', isDefault: true },
+        // { id: 'test_4', filename: '4.webp', data: '/puzzles-test/4.webp', mimeType: 'image/webp', isDefault: true },
+        // { id: 'test_5', filename: '5.webp', data: '/puzzles-test/5.webp', mimeType: 'image/webp', isDefault: true },
       ]
     } else {
       // Default images

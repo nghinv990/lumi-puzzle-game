@@ -324,6 +324,7 @@ export default function AdminDashboard() {
     players,
     gameState,
     startGame,
+    endGame,
     resetGame,
     joinGame: socketJoinGame,
   } = useSocket({
@@ -453,16 +454,30 @@ export default function AdminDashboard() {
     showNotification('🚀 Game đã bắt đầu!')
   }
 
+  const handleEndGame = () => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Kết thúc Game',
+      message: 'Kết thúc lượt chơi hiện tại? Kết quả sẽ được giữ lại để xem.',
+      type: 'warning',
+      onConfirm: () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }))
+        endGame()
+        showNotification('🏁 Game đã kết thúc!')
+      }
+    })
+  }
+
   const handleResetGame = () => {
     setConfirmModal({
       isOpen: true,
-      title: 'Reset Game',
-      message: 'Bạn có chắc chắn muốn reset game? Toàn bộ tiến độ người chơi sẽ bị xóa.',
+      title: 'Tạo Game Mới',
+      message: 'Bạn có chắc chắn muốn tạo game mới? Toàn bộ kết quả sẽ bị xóa.',
       type: 'danger',
       onConfirm: () => {
         setConfirmModal(prev => ({ ...prev, isOpen: false }))
         resetGame()
-        showNotification('🔄 Game đã reset!')
+        showNotification('🔄 Đã reset! Sẵn sàng cho game mới.')
       }
     })
   }
@@ -504,12 +519,22 @@ export default function AdminDashboard() {
             </div>
 
             <div className="flex gap-3">
-              <button
-                onClick={handleResetGame}
-                className="btn btn-secondary"
-              >
-                Reset Game
-              </button>
+              {gameState?.isStarted ? (
+                <button
+                  onClick={handleEndGame}
+                  className="btn btn-secondary"
+                >
+                  🏁 Kết thúc Game
+                </button>
+              ) : (
+                <button
+                  onClick={handleResetGame}
+                  className="btn btn-secondary"
+                  disabled={!gameState?.totalPuzzles}
+                >
+                  🔄 Tạo Game Mới
+                </button>
+              )}
               <button
                 onClick={handleStartGame}
                 disabled={gameState?.isStarted || sortedPlayers.length === 0}
