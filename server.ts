@@ -7,6 +7,9 @@ const dev = process.env.NODE_ENV !== 'production'
 const hostname = 'localhost'
 const port = parseInt(process.env.PORT || '3000', 10)
 
+// Conditional logging - only log in development to prevent memory leak
+const log = dev ? console.log.bind(console) : () => { }
+
 const app = next({ dev, hostname, port })
 const handle = app.getRequestHandler()
 
@@ -66,7 +69,7 @@ app.prepare().then(() => {
   })
 
   io.on('connection', (socket) => {
-    console.log(`[Socket] Client connected: ${socket.id}`)
+    log(`[Socket] Client connected: ${socket.id}`)
 
     // Player joins the game
     socket.on('player:join', (playerData: { id?: string; name: string; isGameMaster: boolean }) => {
@@ -80,7 +83,7 @@ app.prepare().then(() => {
         existingPlayer.isOnline = true
         existingPlayer.lastUpdate = Date.now()
         socketToPlayer.set(socket.id, playerId)
-        console.log(`[Socket] Player reconnected: ${existingPlayer.name}`)
+        log(`[Socket] Player reconnected: ${existingPlayer.name}`)
       } else {
         // New player
         const player: Player = {
@@ -99,7 +102,7 @@ app.prepare().then(() => {
 
         players.set(playerId, player)
         socketToPlayer.set(socket.id, playerId)
-        console.log(`[Socket] Player joined: ${player.name} (GM: ${player.isGameMaster})`)
+        log(`[Socket] Player joined: ${player.name} (GM: ${player.isGameMaster})`)
       }
 
       io.emit('players:update', Array.from(players.values()))
@@ -155,7 +158,7 @@ app.prepare().then(() => {
         player.currentPuzzle = completeData.currentPuzzle
         player.lastUpdate = Date.now()
 
-        console.log(`[Socket] Player ${player.name} completed puzzle: Score ${player.score}`)
+        log(`[Socket] Player ${player.name} completed puzzle: Score ${player.score}`)
         io.emit('players:update', Array.from(players.values()))
 
         io.emit('player:completed', {
@@ -179,7 +182,7 @@ app.prepare().then(() => {
           totalPuzzles: data.totalPuzzles || 5,
         }
 
-        console.log(`[Socket] Game started by ${player.name}`)
+        log(`[Socket] Game started by ${player.name}`)
         io.emit('game:started', gameState)
       }
     })
@@ -195,7 +198,7 @@ app.prepare().then(() => {
           totalPuzzles: gameState.totalPuzzles, // Keep totalPuzzles for showing results
         }
 
-        console.log(`[Socket] Game ended by ${player.name} - keeping results`)
+        log(`[Socket] Game ended by ${player.name} - keeping results`)
         io.emit('game:ended', gameState)
       }
     })
@@ -235,7 +238,7 @@ app.prepare().then(() => {
           socketToPlayer.set(adminSocketId, adminPlayerId)
         }
 
-        console.log(`[Socket] Game reset by ${player.name} - all player results cleared`)
+        log(`[Socket] Game reset by ${player.name} - all player results cleared`)
         io.emit('game:reset', gameState)
         io.emit('players:update', Array.from(players.values()))
       }
@@ -247,7 +250,7 @@ app.prepare().then(() => {
       const player = playerId ? players.get(playerId) : null
 
       if (player && playerId) {
-        console.log(`[Socket] Player disconnected: ${player.name}`)
+        log(`[Socket] Player disconnected: ${player.name}`)
 
         // If game is not active (no results to keep) or player is game master, remove them
         // Otherwise keep their results
